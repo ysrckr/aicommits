@@ -1,9 +1,11 @@
-import { generateText } from 'ai';
+import { commitTypeFormats, generatePrompt } from './prompt.js';
+
+import type { CommitType } from './config-types.js';
+import { KnownError } from './error.js';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { KnownError } from './error.js';
-import type { CommitType } from './config-types.js';
-import { generatePrompt, commitTypeFormats } from './prompt.js';
+import { generateText } from 'ai';
+import { taskName } from './git.js';
 
 const sanitizeMessage = (message: string, maxLength: number) => {
  	let sanitized = message
@@ -59,8 +61,15 @@ export const generateCommitMessage = async (
 		);
 		const results = await Promise.all(promises);
 		const texts = results.map((r) => r.text);
+		const task = await taskName();
 		const messages = deduplicateMessages(
-			texts.map((text: string) => sanitizeMessage(text, maxLength))
+			texts.map((text: string) => {
+				const sanitized = sanitizeMessage(text, maxLength);
+				if (task) {
+					return `${task} | ${sanitized}`;
+				}
+				return sanitized;
+			})
 		);
 		const usage = {
 			prompt_tokens: results.reduce(
@@ -158,6 +167,7 @@ Do not add thanks, explanations, or any text outside the commit message.`;
 		clearTimeout(timeoutId);
 
 		const combinedMessage = sanitizeMessage(result.text, maxLength);
+
 
 		return { messages: [combinedMessage], usage: result.usage };
 	} catch (error) {

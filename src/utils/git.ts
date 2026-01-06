@@ -1,5 +1,5 @@
-import { execa } from 'execa';
 import { KnownError } from './error.js';
+import { execa } from 'execa';
 
 export const assertGitRepo = async () => {
 	const { stdout, failed } = await execa(
@@ -50,6 +50,21 @@ export const getStagedDiff = async (excludeFiles?: string[]) => {
 	};
 };
 
+const branchName = async () => {
+	const { stdout } = await execa('git', [
+		'rev-parse',
+		'--abbrev-ref',
+		'HEAD',
+	]);
+	return stdout;
+};
+
+export const taskName = async () => {
+	const name = await branchName();
+	// Remove feature/ or bugfix/ prefixes
+	return name.replace(/^(feature|bugfix|hotfix|release|chore|docs|test|ci|build|refactor|perf|style|fix|feat)[/\\-_]/i, '');
+}
+
 export const getStagedDiffForFiles = async (files: string[], excludeFiles?: string[]) => {
 	const diffCached = ['diff', '--cached', '--diff-algorithm=minimal'];
 	const excludes = [
@@ -74,3 +89,5 @@ export const getDetectedMessage = (files: string[]) =>
 	`Detected ${files.length.toLocaleString()} staged file${
 		files.length > 1 ? 's' : ''
 	}`;
+
+
